@@ -2,14 +2,21 @@
 
 ## 1. System Design
 
+#### Actions
+- Entering pet info
+- Add tasks
+- Add a schedule for tasks
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+
 - What classes did you include, and what responsibilities did you assign to each?
 
 **b. Design changes**
 
 - Did your design change during implementation?
+
 - If yes, describe at least one change and why you made it.
 
 ---
