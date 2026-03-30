@@ -9,6 +9,38 @@
 
 **a. Initial design**
 
+```mermaid
+classDiagram
+    class Owner {
+        +String name
+        +String email
+        +addPet(pet: Pet)
+    }
+
+    class Pet {
+        +String name
+        +String species
+        +String breed
+        +int age
+    }
+
+    class Task {
+        +String title
+        +String description
+        +String priority
+    }
+
+    class Schedule {
+        +Date startDate
+        +String frequency
+        +String time
+    }
+
+    Owner "1" --> "many" Pet : has
+    Pet "1" --> "many" Task : has
+    Task "1" --> "1" Schedule : scheduled by
+```
+
 - Briefly describe your initial UML design.
 
 - What classes did you include, and what responsibilities did you assign to each?
