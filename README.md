@@ -32,6 +32,17 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Smarter Scheduling
+
+Four features were added to the `Scheduler` class to make the daily plan more useful:
+
+| Feature | Method | What it does |
+|---|---|---|
+| **Time sorting** | `sort_by_time(tasks)` | Orders any task list chronologically by `HH:MM` start time. Tasks without a schedule are placed at the end. |
+| **Flexible filtering** | `filter_tasks(completed, pet_name)` | Returns tasks matching any combination of completion status and/or pet name. Both parameters are optional — omit either to skip that filter. |
+| **Auto-rescheduling** | `complete_task(task)` | Marks a task done. For `daily` tasks a new instance is created for the next day; for `weekly` tasks, seven days ahead. `once` tasks are not rescheduled. Returns the new `Task` or `None`. |
+| **Conflict detection** | `get_conflicts(target)` | Scans all tasks active on a given date and returns a list of human-readable warning strings for any time slot with two or more overlapping tasks (same or different pets). Never raises — returns an empty list when there are no conflicts. |
+
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.

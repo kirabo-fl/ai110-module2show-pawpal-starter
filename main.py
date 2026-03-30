@@ -11,7 +11,7 @@ mochi = Pet(name="Mochi", species="Cat", breed="Ragdoll", age=2)
 owner.add_pet(buddy)
 owner.add_pet(mochi)
 
-# --- Tasks for Buddy ---
+# --- Buddy's tasks ---
 buddy.add_task(Task(
     title="Morning Walk",
     description="30-minute walk around the block",
@@ -28,7 +28,16 @@ buddy.add_task(Task(
     schedule=Schedule(start_date=date.today(), frequency="once", time="09:00")
 ))
 
-# --- Tasks for Mochi ---
+# Deliberate conflict: same pet (Buddy), same time as Morning Walk (07:00)
+buddy.add_task(Task(
+    title="Vet Appointment",
+    description="Annual check-up",
+    priority="high",
+    pet_name="Buddy",
+    schedule=Schedule(start_date=date.today(), frequency="once", time="07:00")
+))
+
+# --- Mochi's tasks ---
 mochi.add_task(Task(
     title="Feed Breakfast",
     description="Half cup of dry food",
@@ -45,26 +54,55 @@ mochi.add_task(Task(
     schedule=Schedule(start_date=date.today(), frequency="weekly", time="18:00")
 ))
 
-# --- Print Today's Schedule ---
+# Deliberate conflict: different pets (Buddy + Mochi) both at 09:00
+mochi.add_task(Task(
+    title="Nail Trim",
+    description="Trim front and back claws",
+    priority="medium",
+    pet_name="Mochi",
+    schedule=Schedule(start_date=date.today(), frequency="once", time="09:00")
+))
+
 scheduler = Scheduler(owner)
+
+
+# --- Helper to print a task list ---
+def print_tasks(tasks: list, label: str) -> None:
+    print("=" * 50)
+    print(f"  {label}")
+    print("=" * 50)
+    if not tasks:
+        print("  (none)")
+    else:
+        for task in tasks:
+            status = "[x]" if task.completed else "[ ]"
+            time = task.schedule.time if task.schedule else "--:--"
+            print(f"  {status} {time}  [{task.pet_name}]  {task.title}")
+            print(f"           Priority : {task.priority}")
+            print(f"           Note     : {task.description}")
+            print()
+    print()
+
+
+# --- 1. Today's full schedule sorted by time ---
 todays_tasks = scheduler.get_tasks_for_date(date.today())
-todays_tasks_sorted = sorted(todays_tasks, key=lambda t: t.schedule.time)
+sorted_today = scheduler.sort_by_time(todays_tasks)
+print_tasks(sorted_today, f"Today's Schedule — {date.today()}  (sorted by time)")
 
-print("=" * 40)
-print(f"   Today's Schedule — {date.today()}")
-print("=" * 40)
-
-if not todays_tasks_sorted:
-    print("No tasks scheduled for today.")
+# --- 2. Conflict detection ---
+print("=" * 50)
+print("  Conflict Check")
+print("=" * 50)
+conflicts = scheduler.get_conflicts()
+if not conflicts:
+    print("  No scheduling conflicts found.")
 else:
-    for task in todays_tasks_sorted:
-        status = "[x]" if task.completed else "[ ]"
-        print(f"{status} {task.schedule.time}  [{task.pet_name}]  {task.title}")
-        print(f"         Priority : {task.priority}")
-        print(f"         Note     : {task.description}")
-        print()
+    for warning in conflicts:
+        print(f"  {warning}")
+print()
 
-print("=" * 40)
-print(f"Total tasks today: {len(todays_tasks_sorted)}")
-print(f"Pending          : {len([t for t in todays_tasks_sorted if not t.completed])}")
-print("=" * 40)
+# --- 3. Summary ---
+print("=" * 50)
+print(f"  Total tasks today : {len(sorted_today)}")
+print(f"  Conflicts found   : {len(conflicts)}")
+print("=" * 50)

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 
@@ -106,6 +106,100 @@ class Scheduler:
                 results.append(task)
         return results
 
-    def complete_task(self, task: Task) -> None:
-        """Mark a task as completed."""
+    def filter_tasks(
+        self,
+        completed: Optional[bool] = None,
+        pet_name: Optional[str] = None,
+    ) -> list[Task]:
+        """Return tasks filtered by completion status and/or pet name.
+
+        Args:
+            completed: True for completed tasks, False for pending,
+                       None to include both.
+            pet_name:  Only return tasks belonging to this pet.
+                       None to include all pets.
+        """
+        tasks = self.owner.get_all_tasks()
+        if completed is not None:
+            tasks = [t for t in tasks if t.completed == completed]
+        if pet_name is not None:
+            tasks = [t for t in tasks if t.pet_name == pet_name]
+        return tasks
+
+    def get_conflicts(self, target: Optional[date] = None) -> list[str]:
+        """Return a list of human-readable warning strings for time conflicts.
+
+        A conflict is any two tasks (same pet or different pets) whose schedule
+        is active on 'target' and share the same time slot. Never raises —
+        returns an empty list when no conflicts exist.
+
+        Args:
+            target: The date to check. Defaults to today.
+        """
+        if target is None:
+            target = date.today()
+
+        # Collect all tasks active on target that have a scheduled time
+        active = [t for t in self.get_tasks_for_date(target) if t.schedule]
+
+        # Group by time slot: {"08:00": [task, task, ...], ...}
+        by_time: dict[str, list[Task]] = {}
+        for task in active:
+            by_time.setdefault(task.schedule.time, []).append(task)
+
+        warnings: list[str] = []
+        for time_slot, tasks in sorted(by_time.items()):
+            if len(tasks) < 2:
+                continue
+            names = ", ".join(f"[{t.pet_name}] {t.title}" for t in tasks)
+            warnings.append(
+                f"WARNING: {len(tasks)} tasks overlap at {time_slot} on {target}: {names}"
+            )
+
+        return warnings
+
+    def sort_by_time(self, tasks: Optional[list[Task]] = None) -> list[Task]:
+        """Return tasks sorted by scheduled time (HH:MM), earliest first.
+        Tasks without a schedule are placed at the end."""
+        if tasks is None:
+            tasks = self.owner.get_all_tasks()
+        return sorted(tasks, key=lambda t: t.schedule.time if t.schedule else "99:99")
+
+    def complete_task(self, task: Task) -> Optional[Task]:
+        """Mark a task as completed.
+
+        For 'daily' and 'weekly' recurring tasks, automatically creates and
+        schedules a new Task instance for the next occurrence.
+
+        Returns the newly created Task, or None for 'once' tasks / no schedule.
+        """
         task.completed = True
+
+        if task.schedule is None or task.schedule.frequency not in ("daily", "weekly"):
+            return None
+
+        interval = timedelta(days=1 if task.schedule.frequency == "daily" else 7)
+        next_start = task.schedule.start_date + interval
+
+        # Don't create a next occurrence past the schedule's end date
+        if task.schedule.end_date is not None and next_start > task.schedule.end_date:
+            return None
+
+        next_task = Task(
+            title=task.title,
+            description=task.description,
+            priority=task.priority,
+            pet_name=task.pet_name,
+            schedule=Schedule(
+                start_date=next_start,
+                frequency=task.schedule.frequency,
+                time=task.schedule.time,
+                end_date=task.schedule.end_date,
+            ),
+        )
+
+        pet = self.owner.get_pet_by_name(task.pet_name)
+        if pet is not None:
+            pet.add_task(next_task)
+
+        return next_task

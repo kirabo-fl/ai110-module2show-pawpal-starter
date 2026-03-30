@@ -78,12 +78,22 @@ Without this method, the only way to access a specific pet was to loop through `
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+
+The scheduler considers three constraints. First, **time** — each task's `Schedule.time` (`HH:MM`) determines when it appears in the day's agenda, and `sort_by_time()` orders tasks chronologically. Second, **date range** — `get_tasks_for_date()` checks `start_date` and `end_date` so tasks only appear within their active window, and `frequency` (`daily`, `weekly`, `once`) controls how often they recur. Third, **priority** — `get_all_tasks()` sorts by priority level (`high → medium → low`) so the most important tasks surface first when time is not the primary sort key.
+
 - How did you decide which constraints mattered most?
+
+Time came first because a pet care app is fundamentally a daily checklist — an owner needs to know what to do and in what order. Date range came second because without it, a one-time medication or a short course of treatment would appear forever. Priority came last because it is a secondary sort used when scanning all tasks across pets, not a hard scheduling rule; two high-priority tasks can still run at the same time, and it is up to the owner to resolve that.
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+
+The scheduler's `get_conflicts()` method flags a conflict only when two tasks share the exact same `HH:MM` start time. It does not consider how long each task takes, so a 30-minute walk starting at `07:00` and a vet check-in starting at `07:20` would not be flagged even though they overlap in real life. This is a deliberate simplification — the `Task` and `Schedule` classes store no duration field, so there is no data to support true interval-overlap logic (`start_A < end_B and start_B < end_A`).
+
 - Why is that tradeoff reasonable for this scenario?
+
+Pet care tasks (feed, medicate, walk) are short and discrete. Exact-match conflict detection catches the most critical mistake — two tasks booked at the identical start time — without over-engineering the scheduler for a use case the data model does not yet support. Adding duration would require changing the data model and deciding how to handle tasks with unknown or variable lengths, which is complexity not justified at this scope.
 
 ---
 
@@ -92,11 +102,15 @@ Without this method, the only way to access a specific pet was to loop through `
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
+
 - What kinds of prompts or questions were most helpful?
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
+
+
 - How did you evaluate or verify what the AI suggested?
 
 ---
@@ -106,11 +120,14 @@ Without this method, the only way to access a specific pet was to loop through `
 **a. What you tested**
 
 - What behaviors did you test?
+
 - Why were these tests important?
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
+
+
 - What edge cases would you test next if you had more time?
 
 ---
