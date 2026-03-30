@@ -43,13 +43,33 @@ classDiagram
 
 - Briefly describe your initial UML design.
 
+The initial design uses four classes: `Owner`, `Pet`, `Task`, and `Schedule`. An Owner holds a list of Pets, each Pet holds a list of Tasks, and each Task optionally links to one Schedule. This chain reflects the three core actions in the app, entering pet info, adding tasks, and scheduling those tasks.
+
 - What classes did you include, and what responsibilities did you assign to each?
+
+| Class | Responsibility |
+|-------|----------------|
+| `Owner` | Represents the app user; manages their collection of pets |
+| `Pet` | Stores pet info (name, species, breed, age); owns its tasks |
+| `Task` | Represents a single care action (e.g. feed, walk); holds title, description, and priority |
+| `Schedule` | Holds when and how often a task runs (start date, frequency, time) |
 
 **b. Design changes**
 
 - Did your design change during implementation?
 
+Yes, three changes were made after reviewing the initial skeleton.
+
 - If yes, describe at least one change and why you made it.
+
+**Change 1 — Added `end_date` to `Schedule`**
+The initial `Schedule` only had `start_date`, `frequency`, and `time`. Without an `end_date`, there was no way to stop a recurring task. For example, a medication task that runs daily for two weeks would have no defined endpoint. Adding `end_date` as an optional field (defaulting to `None` for open-ended tasks) fixes this without overcomplicating the class.
+
+**Change 2 — Added `pet_name` to `Task`**
+The initial design had `Task` floating without any reference back to the `Pet` it belonged to. This would make it impossible to display or filter tasks by pet without scanning every pet's task list. Adding `pet_name` gives each task a direct link to its owner.
+
+**Change 3 — Added `get_pet_by_name()` to `Owner`**
+Without this method, the only way to access a specific pet was to loop through `owner.pets` every time. Since tasks and schedules are always tied to a specific pet, this lookup would be needed repeatedly. Adding the method prevents that bottleneck from spreading through the rest of the code.
 
 ---
 
