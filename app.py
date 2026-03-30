@@ -1,8 +1,33 @@
+from datetime import date
 import streamlit as st
+from pawpal_system import Owner, Pet, Task, Schedule, Scheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
+# ── Session-state bootstrap ────────────────────────────────────────────────
+if "owner" not in st.session_state:
+    st.session_state.owner = None
+if "scheduler" not in st.session_state:
+    st.session_state.scheduler = None
+
 st.title("🐾 PawPal+")
+
+# ── Owner + Scheduler setup ────────────────────────────────────────────────
+with st.expander("Owner setup", expanded=st.session_state.owner is None):
+    with st.form("owner_form"):
+        _name  = st.text_input("Owner name",  value="Faith")
+        _email = st.text_input("Owner email", value="faith@example.com")
+        _pet_name    = st.text_input("Pet name",  value="Mochi")
+        _pet_species = st.selectbox("Species", ["Dog", "Cat", "Bird", "Other"])
+        _pet_breed   = st.text_input("Breed",  value="Ragdoll")
+        _pet_age     = st.number_input("Age (years)", min_value=0, max_value=30, value=2)
+        if st.form_submit_button("Save owner & pet"):
+            _owner = Owner(name=_name, email=_email)
+            _owner.add_pet(Pet(name=_pet_name, species=_pet_species,
+                               breed=_pet_breed, age=_pet_age))
+            st.session_state.owner     = _owner
+            st.session_state.scheduler = Scheduler(_owner)
+            st.success(f"Saved {_name} with pet {_pet_name}.")
 
 st.markdown(
     """
@@ -53,18 +78,60 @@ col1, col2, col3 = st.columns(3)
 with col1:
     task_title = st.text_input("Task title", value="Morning walk")
 with col2:
-    duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
+    task_time = st.text_input("Time (HH:MM)", value="08:00")
 with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
+col4, col5 = st.columns(2)
+with col4:
+    task_freq = st.selectbox("Frequency", ["daily", "weekly", "once"])
+with col5:
+    task_desc = st.text_input("Description", value="")
+
 if st.button("Add task"):
-    st.session_state.tasks.append(
-        {"title": task_title, "duration_minutes": int(duration), "priority": priority}
-    )
+    if st.session_state.owner is not None:
+        pet = st.session_state.owner.get_pets()[0] if st.session_state.owner.get_pets() else None
+        if pet:
+            pet.add_task(Task(
+                title=task_title,
+                description=task_desc,
+                priority=priority,
+                pet_name=pet.name,
+                schedule=Schedule(
+                    start_date=date.today(),
+                    frequency=task_freq,
+                    time=task_time,
+                ),
+            ))
+            st.session_state.tasks.append(
+                {"title": task_title, "time": task_time,
+                 "frequency": task_freq, "priority": priority}
+            )
+        else:
+            st.warning("No pet found. Complete owner setup first.")
+    else:
+        st.session_state.tasks.append(
+            {"title": task_title, "time": task_time,
+             "frequency": task_freq, "priority": priority}
+        )
 
 if st.session_state.tasks:
     st.write("Current tasks:")
-    st.table(st.session_state.tasks)
+    # Colour-code the Priority column so high/medium/low stand out at a glance
+    import pandas as pd
+
+    def _highlight_priority(val: str) -> str:
+        colours = {"high": "background-color:#ffd6d6", # red tint
+                   "medium": "background-color:#fff4cc", # yellow tint
+                   "low": "background-color:#d6f5d6"}    # green tint
+        return colours.get(val, "")
+
+    df = pd.DataFrame(st.session_state.tasks)
+    st.dataframe(
+        df.style.applymap(_highlight_priority, subset=["priority"]),
+        use_container_width=True,
+        hide_index=True,
+    )
 else:
     st.info("No tasks yet. Add one above.")
 
@@ -74,15 +141,89 @@ st.subheader("Build Schedule")
 st.caption("This button should call your scheduling logic once you implement it.")
 
 if st.button("Generate schedule"):
-    st.warning(
-        "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
-    )
-    st.markdown(
-        """
-Suggested approach:
-1. Design your UML (draft).
-2. Create class stubs (no logic).
-3. Implement scheduling behavior.
-4. Connect your scheduler here and display results.
-"""
-    )
+    if st.session_state.scheduler is None:
+        st.warning("Complete owner setup first.")
+    else:
+        scheduler: Scheduler = st.session_state.scheduler
+
+        # Conflict warnings (get_conflicts)
+        conflicts = scheduler.get_conflicts(date.today())
+        if conflicts:
+            with st.container(border=True):
+                st.markdown("**⚠️ Scheduling Conflicts Detected**")
+                for w in conflicts:
+                    st.error(w, icon="🚨")
+        else:
+            st.success("No scheduling conflicts today.", icon="✅")
+
+        # Today's tasks sorted by time (sort_by_time)
+        todays_tasks  = scheduler.get_tasks_for_date(date.today())
+        sorted_tasks  = scheduler.sort_by_time(todays_tasks)
+
+        if not sorted_tasks:
+            st.info("No tasks scheduled for today.", icon="📋")
+        else:
+            st.markdown("#### 📅 Today's Plan")
+
+            # One styled card per task — colour driven by priority & completion
+            for task in sorted_tasks:
+                time_str = task.schedule.time if task.schedule else "--:--"
+                label    = f"**{time_str}** &nbsp; `{task.pet_name}` — {task.title}"
+                detail   = f"_{task.priority} priority_ · {task.description}"
+
+                if task.completed:
+                    st.success(f"✅ {label}\n\n{detail}")
+                elif task.priority == "high":
+                    st.error(f"🔴 {label}\n\n{detail}")
+                elif task.priority == "medium":
+                    st.warning(f"🟡 {label}\n\n{detail}")
+                else:
+                    st.info(f"🟢 {label}\n\n{detail}")
+
+            st.divider()
+
+            # Summary metrics
+            pending = scheduler.filter_tasks(completed=False)   # filter_tasks
+            done    = scheduler.filter_tasks(completed=True)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Total today", len(sorted_tasks))
+            c2.metric("Pending",     len(pending))
+            c3.metric("Completed",   len(done))
+
+            # Filtered table view
+            st.markdown("#### 🔍 Filter Tasks")
+            f1, f2 = st.columns(2)
+            with f1:
+                pet_options = ["All pets"] + [p.name for p in st.session_state.owner.get_pets()]
+                sel_pet = st.selectbox("By pet", pet_options, key="filter_pet")
+            with f2:
+                sel_status = st.selectbox("By status", ["All", "Pending", "Completed"],
+                                          key="filter_status")
+
+            pet_arg      = None if sel_pet    == "All pets"  else sel_pet
+            complete_arg = None if sel_status == "All"       else (sel_status == "Completed")
+            filtered     = scheduler.filter_tasks(completed=complete_arg, pet_name=pet_arg)
+            filtered     = scheduler.sort_by_time(filtered)
+
+            if filtered:
+                import pandas as pd
+                rows = [{"Time":      t.schedule.time if t.schedule else "--:--",
+                         "Pet":       t.pet_name,
+                         "Task":      t.title,
+                         "Priority":  t.priority,
+                         "Frequency": t.schedule.frequency if t.schedule else "—",
+                         "Done":      "Yes" if t.completed else "No"}
+                        for t in filtered]
+
+                def _colour(val: str) -> str:
+                    return {"high":   "background-color:#ffd6d6",
+                            "medium": "background-color:#fff4cc",
+                            "low":    "background-color:#d6f5d6"}.get(val, "")
+
+                st.dataframe(
+                    pd.DataFrame(rows).style.applymap(_colour, subset=["Priority"]),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("No tasks match the selected filters.")
