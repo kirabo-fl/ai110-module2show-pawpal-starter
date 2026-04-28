@@ -116,10 +116,12 @@ pytest tests/
 python eval_advisor.py
 ```
 
----
+
 ## Video Walkthrough
- 
-<video src="E1FF99AD-4699-4011-B172-D0AA46FB9E1A.mov" width="100%"></video>
+
+Video: <video controls src="../Screen Recording 2026-04-28 at 12.08.14.mov" title="Video walkthrough"></video>
+
+
 ---
 ## Sample Interactions
 
