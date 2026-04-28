@@ -1,6 +1,7 @@
 from datetime import date
 import streamlit as st
 from pawpal_system import Owner, Pet, Task, Schedule, Scheduler
+from ai_advisor import ask_advisor
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -227,3 +228,51 @@ if st.button("Generate schedule"):
                 )
             else:
                 st.info("No tasks match the selected filters.")
+
+st.divider()
+
+# ── AI Care Advisor ────────────────────────────────────────────────────────
+st.subheader("🤖 AI Care Advisor")
+st.caption(
+    "Ask any pet care question. The advisor retrieves relevant facts from a "
+    "built-in knowledge base and answers using the Gemini API."
+)
+
+with st.form("advisor_form"):
+    question = st.text_input(
+        "Your question",
+        placeholder="e.g. How often should I brush my Ragdoll cat?",
+    )
+    ask_btn = st.form_submit_button("Ask")
+
+if ask_btn:
+    if not question.strip():
+        st.warning("Please enter a question first.")
+    else:
+        # Build pet context from session state if available
+        pet_context = ""
+        if st.session_state.owner:
+            pets = st.session_state.owner.get_pets()
+            if pets:
+                p = pets[0]
+                pet_context = f"{p.name}, {p.species}, {p.breed}, age {p.age}"
+
+        with st.spinner("Thinking..."):
+            result = ask_advisor(question, pet_context)
+
+        if result["status"] == "rejected":
+            st.warning(f"🚫 {result['reason']}")
+
+        elif result["status"] == "error":
+            st.error(f"⚠️ {result['reason']}")
+
+        elif result["status"] == "flagged":
+            st.warning(result["answer"])
+
+        else:
+            st.success(result["answer"])
+
+        if result["retrieved_facts"]:
+            with st.expander("📚 Knowledge base facts used"):
+                for fact in result["retrieved_facts"]:
+                    st.markdown(f"- {fact}")
