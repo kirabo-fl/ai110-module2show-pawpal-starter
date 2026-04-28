@@ -119,7 +119,7 @@ python eval_advisor.py
 ---
 ## Video Walkthrough
  
-<video controls src="E1FF99AD-4699-4011-B172-D0AA46FB9E1A.mov" title="System Video Walkthrough"></video>
+<video src="E1FF99AD-4699-4011-B172-D0AA46FB9E1A.mov" width="100%"></video>
 ---
 ## Sample Interactions
 
