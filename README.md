@@ -119,7 +119,8 @@ python eval_advisor.py
 
 ## Video Walkthrough
 
-Video: <video controls src="../Screen Recording 2026-04-28 at 12.08.14.mov" title="Video walkthrough"></video>
+[Watch the video walkthrough](Screen%20Recording%202026-04-28%20at%2012.08.14.mov)
+
 
 
 ---
